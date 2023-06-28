@@ -19,7 +19,7 @@ environment:
   # Disable the .NET first time experience to skip caching NuGet packages and speed up the build.
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   # Use latest version of current used .NET version.  6.0 could use the latest of 6.0.  See .\Scripts\Update-DotnetVersion.ps1
-  GE_USE_LATEST_DOTNET: true
+  GE_USE_LATEST_DOTNET: false
 
 init:
   - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
@@ -164,14 +164,16 @@ on_failure:
         Push-AppveyorArtifact "$_"
     }
 - ps: |
-    Get-ChildItem -recurse artifacts\Release\TestsResults\*.trx | `
-        ForEach-Object {
-            $file = $_.FullName.Replace('[', '``[').Replace(']', '``]')
-            #Write-Output "Processing $file"
+    if (Test-Path -Path "artifacts\Release\TestsResults" -PathType Container) {
+      Get-ChildItem -recurse artifacts\Release\TestsResults\*.trx | `
+          ForEach-Object {
+              $file = $_.FullName.Replace('[', '``[').Replace(']', '``]')
+              #Write-Output "Processing $file"
 
-            [xml]$xml = Get-Content -Path $file
-            $xml.TestRun.Results.UnitTestResult | Where-Object outcome -eq 'Failed' | ForEach-Object {
-                $errorMessage = "$($_.Output.ErrorInfo.Message)`r`n$($_.Output.ErrorInfo.StackTrace)`r`n"
-                Write-Host $errorMessage -ForegroundColor Red
-            }
-        }
+              [xml]$xml = Get-Content -Path $file
+              $xml.TestRun.Results.UnitTestResult | Where-Object outcome -eq 'Failed' | ForEach-Object {
+                  $errorMessage = "$($_.Output.ErrorInfo.Message)`r`n$($_.Output.ErrorInfo.StackTrace)`r`n"
+                  Write-Host $errorMessage -ForegroundColor Red
+              }
+          }
+    }
